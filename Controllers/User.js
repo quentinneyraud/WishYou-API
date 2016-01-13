@@ -3,65 +3,82 @@ var Response = require('../utils/Response');
 var JwtToken = require('../config.js').jsonWebTokenSecret;
 var bcrypt = require('bcrypt');
 var jwt    = require('jsonwebtoken');
-var validator = require('validator');
 var mail = require('../utils/Mail').init();
+var verification = require('../utils/Verification');
+var dataValidator = require('../utils/DataValidator');
 
 
 module.exports = {
 
-    init: function(res){
-        Response.init(res);
-    },
-
     authenticate: function(datas, cb){
 
-        userDatas = {
-            name: datas.name || null,
-            password: datas.password || null
-        };
 
+        verification.checkKeys(datas, ['email', 'password'], function(err, postDatas){
 
-        UserModel.findOne({
-            name: userDatas.name
-        }, function(err, user) {
-
-            if (err){
+            // if missing parameter(s)
+            if(err){
                 cb({
                     status: 'error',
-                    message: 'Error while getting user'
+                    message: 'Missing parameters',
+                    datas : err
                 })
-            }
+            }else{
 
-            if (!user) {
-                cb({
-                    status: 'error',
-                    message: 'Authentication failed. User not found.'
-                });
-            } else if (user) {
+                // Find user by name
+                UserModel.findOne({
+                    email: postDatas.email.toLowerCase()
+                }, function(err, user) {
 
-                bcrypt.compare(userDatas.password, user.password, function(err, resultat) {
-                    if (resultat) {
-                        var token = jwt.sign(user, JwtToken, {
-                            expiresIn: 1440 // expires in 24 hours
-                        });
-
-                        cb({
-                            status: 'success',
-                            message: 'Token generated',
-                            datas: {
-                                token: token
-                            }
-                        });
-                    } else {
+                    if (err){
                         cb({
                             status: 'error',
-                            message: 'Authentication failed. Wrong password.'
+                            message: 'Error while getting user'
+                        })
+                    }
+
+                    // Name doesn't exist
+                    if (!user) {
+                        cb({
+                            status: 'error',
+                            message: 'Authentication failed. User not found.'
+                        });
+                    } else if (user) {
+
+                        // Compare stored password with POST password
+                        bcrypt.compare(postDatas.password, user.password, function(err, result) {
+
+                            // Same passwords, return token
+                            if (result) {
+                                var token = jwt.sign(user, JwtToken, {
+                                    expiresIn: 1440 // expires in 24 hours
+                                });
+
+                                cb({
+                                    status: 'success',
+                                    message: 'Token generated',
+                                    datas: {
+                                        token: token
+                                    }
+                                });
+                            } else {
+                                cb({
+                                    status: 'error',
+                                    message: 'Authentication failed. Wrong password.'
+                                });
+                            }
                         });
                     }
-                });
-            }
 
-        });
+                });
+
+            }
+        })
+
+
+
+
+
+
     },
 
     findById: function(id, cb){
@@ -100,85 +117,77 @@ module.exports = {
         })
     },
 
-    validate: function(datas, cb){
-
-        var userDatas = {
-            name: {},
-            contacts: {}
-        };
-        var errors = [];
-
-        // Validate Firstname
-        if(datas.firstName && validator.isAlpha(datas.firstName)){
-            userDatas.name.first = datas.firstName.toLowerCase();
-        }else{
-            errors.push("Prénom non valide");
-        }
-
-        // Validate Lastname
-        if(datas.lastName && validator.isAlpha(datas.lastName)){
-            userDatas.name.last = datas.lastName.toLowerCase();
-        }else{
-            errors.push("Nom non valide");
-        }
-
-        // Validate Password
-        if(datas.password && datas.password.length > 7 && datas.password.length < 41){
-            userDatas.password = bcrypt.hash(datas.password, 10);
-        }else{
-            errors.push("Mot de passe non valide, il doit être compris entre 8 et 40 caractères");
-        }
-
-
-        // Validate Mail
-        if(datas.mail && validator.isEmail(datas.mail)){
-            UserModel.find({
-                'contacts.mail': datas.mail
-            }, function(err, user){
-                console.log(user);
-                if(user.length){
-                    errors.push("Email déjà utilisé");
-                }else{
-                    userDatas.contacts.mail = datas.mail;
-                }
-                cb(errors, userDatas);
-            });
-        }else{
-            errors.push("Email non valide");
-            cb(errors, userDatas);
-        }
-    },
-
     create: function(datas, cb){
-        mail.send();
-        this.validate(datas, function(errors, userdatas){
-            if(errors.length > 0){
+        //mail.send();
+
+        verification.checkKeys(datas, ['firstName', 'lastName', 'password', 'email'], function(err, postDatas){
+
+            // if missing parameter(s)
+            if(err){
                 cb({
                     status: 'error',
-                    message: 'Error while creating user, datas issue',
-                    datas: errors
+                    message: 'Missing parameters',
+                    datas : err
                 })
-            }else{
-                var user = new UserModel(userdatas);
+            }else {
 
-                user.save(function(err, user){
-                    if(err){
-                        cb({
-                            status: 'error',
-                            message: 'Error while saving user'
-                        });
-                    }else{
-                        cb({
-                            status: 'success',
-                            message: 'User saved',
-                            datas: {
-                                id: user._id
-                            }
-                        });
-                    }
-                })
-            }
-        });
+                var validator = dataValidator.init();
+
+                if (validator.validateString(postDatas.firstName, 3, 40)
+                        .validateString(postDatas.lastName, 3, 40)
+                        .validateLength(postDatas.password, 8, 40)
+                        .validateEmail(postDatas.email)
+                        .issetErrors()) {
+
+                    cb({
+                        status: 'error',
+                        message: 'Errors in POST datas',
+                        datas: validator.getErrors()
+                    })
+
+                } else {
+                    UserModel.findOne({
+                        'contact.email': postDatas.email
+                    }, function (err, user) {
+                        if (user) {
+                            cb({
+                                status: 'error',
+                                message: 'Email already used'
+                            })
+                        } else {
+                            var user = new UserModel({
+                                contact: {
+                                    firstName: postDatas.firstName,
+                                    lastName: postDatas.lastName,
+                                    email: postDatas.email
+                                },
+                                account: {
+                                    password: bcrypt.hashSync(postDatas.password, 10)
+                                }
+                            });
+
+                            user.save(function (err, user) {
+                                if (err) {
+                                    cb({
+                                        status: 'error',
+                                        message: 'Error while saving user'
+                                    });
+                                } else {
+                                    cb({
+                                        status: 'success',
+                                        message: 'User saved',
+                                        datas: {
+                                            id: user._id
+                                        }
+                                    });
+                                }
+                            })
+                        }
+                    });
+                }
+            }}
+        )
+
     }
 
 
