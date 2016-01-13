@@ -3,17 +3,19 @@ var Schema = mongoose.Schema;
 
 // set up a mongoose model
 module.exports = mongoose.model('User', new Schema({
-    name: {
-        first: String,
-        last: String
+    contact: {
+        firstName: String,
+        lastName: String,
+        email: String
     },
-    password: String,
-    contacts: {
-        facebookId: Number,
-        mail: String
+    account: {
+        validated: {
+            type: Boolean,
+            default: false
+        },
+        password: String,
+        facebookId: Number
     },
-    confirmed: {
-        type: Boolean,
-        default: false
-    }
+    friends: Array,
+    wishes: Array
 }));
