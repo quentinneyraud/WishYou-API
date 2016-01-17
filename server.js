@@ -39,6 +39,11 @@ app.use(bodyParser.json());
 // routes ==========================================================
 // =================================================================
 
+app.use(function(req, res, next) {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+  next();
+});
 
 // Init Response on all methods, all routes
 app.all('/*', function(req, res, next){
@@ -96,7 +101,7 @@ apiRoutes.use(function(req, res, next) {
                     message: 'Failed to authenticate token.'
                 });
             } else {
-                req.decoded = decoded;
+                req.user = decoded;
                 next();
             }
         });
