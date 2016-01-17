@@ -54,9 +54,7 @@ module.exports = {
                                 cb({
                                     status: 'success',
                                     message: 'Token generated',
-                                    datas: {
-                                        token: token
-                                    }
+                                    datas: token
                                 });
                             } else {
                                 cb({
