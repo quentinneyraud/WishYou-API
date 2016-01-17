@@ -9,12 +9,9 @@ module.exports = mongoose.model('User', new Schema({
         email: String
     },
     account: {
-        validated: {
-            type: Boolean,
-            default: false
-        },
         password: String,
-        facebookId: Number
+        facebookId: Number,
+        createdAt: Date
     },
     friends: Array,
     wishes: Array
