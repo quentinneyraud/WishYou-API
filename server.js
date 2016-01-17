@@ -82,6 +82,7 @@ apiRoutes.post('/user', function(req, res){
 
 apiRoutes.get('/', function(req, res) {
     response.send({
+        status: 'success',
         message: 'Welcome !'
     });
 });
@@ -97,7 +98,7 @@ apiRoutes.use(function(req, res, next) {
         jwt.verify(token, app.get('jsonWebTokenSecret'), function(err, decoded) {
             if (err) {
                 response.send({
-                    success: false,
+                    status: 'error',
                     message: 'Failed to authenticate token.'
                 });
             } else {
@@ -108,7 +109,7 @@ apiRoutes.use(function(req, res, next) {
     } else {
         response.res.status(403);
         response.send({
-                success: false,
+                status: 'error',
                 message: 'No token provided.'
         });
     }
@@ -124,15 +125,6 @@ apiRoutes.get('/user/:id', function(req, res){
     });
 });
 
-apiRoutes.get('/users', function(req, res) {
-    User.findAll(function(datas) {
-        response.send(datas);
-    });
-});
-
-apiRoutes.get('/check', function(req, res) {
-    res.json(req.decoded);
-});
 
 apiRoutes.all('/*', function(req, res, next){
 

@@ -96,23 +96,6 @@ module.exports = {
         });
     },
 
-    findAll: function(cb){
-        UserModel.find({}, function(err, users){
-            if(err){
-                cb({
-                    status: 'error',
-                    message: 'Error while getting users'
-                })
-            }
-
-            cb({
-                status: 'success',
-                message: 'Request success',
-                datas: users
-            })
-        })
-    },
-
     create: function(datas, cb){
 
         verification.checkKeys(datas, ['firstName', 'lastName', 'password', 'email'], function(err, postDatas){
