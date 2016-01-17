@@ -3,10 +3,8 @@ var Response = require('../utils/Response');
 var JwtToken = require('../config.js').jsonWebTokenSecret;
 var bcrypt = require('bcrypt');
 var jwt    = require('jsonwebtoken');
-var mail = require('../utils/Mail').init();
 var verification = require('../utils/Verification');
 var dataValidator = require('../utils/DataValidator');
-
 
 module.exports = {
 
@@ -26,7 +24,7 @@ module.exports = {
 
                 // Find user by name
                 UserModel.findOne({
-                    email: postDatas.email.toLowerCase()
+                    'contact.email': postDatas.email.toLowerCase()
                 }, function(err, user) {
 
                     if (err){
@@ -45,7 +43,7 @@ module.exports = {
                     } else if (user) {
 
                         // Compare stored password with POST password
-                        bcrypt.compare(postDatas.password, user.password, function(err, result) {
+                        bcrypt.compare(postDatas.password, user.account.password, function(err, result) {
 
                             // Same passwords, return token
                             if (result) {
@@ -82,20 +80,20 @@ module.exports = {
     },
 
     findById: function(id, cb){
-        UserModel.findOne({
-            _id: id
-        }, function(err, user){
-            if(err){
+        UserModel.findById(
+            id
+        , function(err, user){
+            if(err || !user){
                 cb({
                     status: 'error',
                     message: 'Error while getting user'
-                });
+                })
             }else{
                 cb({
                     status: 'success',
-                    message: 'user finded',
+                    message: 'Get user successful',
                     datas: user
-                });
+                })
             }
         });
     },
@@ -118,7 +116,6 @@ module.exports = {
     },
 
     create: function(datas, cb){
-        //mail.send();
 
         verification.checkKeys(datas, ['firstName', 'lastName', 'password', 'email'], function(err, postDatas){
 
@@ -157,12 +154,13 @@ module.exports = {
                         } else {
                             var user = new UserModel({
                                 contact: {
-                                    firstName: postDatas.firstName,
-                                    lastName: postDatas.lastName,
-                                    email: postDatas.email
+                                    firstName: postDatas.firstName.toLowerCase(),
+                                    lastName: postDatas.lastName.toLowerCase(),
+                                    email: postDatas.email.toLowerCase()
                                 },
                                 account: {
-                                    password: bcrypt.hashSync(postDatas.password, 10)
+                                    password: bcrypt.hashSync(postDatas.password, 10),
+                                    createdAt: Date.now()
                                 }
                             });
 
