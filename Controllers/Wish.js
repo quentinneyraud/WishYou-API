@@ -1,6 +1,7 @@
-var WishModel = require('../Models/Wishes');
-var verification = require('../utils/Verification');
-var dataValidator = require('../utils/DataValidator');
+var WishModel = require('../Models/Wish')
+var verification = require('../utils/Verification')
+var dataValidator = require('../utils/DataValidator')
+var _ = require('lodash')
 
 module.exports = {
 
@@ -20,82 +21,139 @@ module.exports = {
                         datas: wish
                     })
                 }
-            });
+            })
     },
 
-    create: function(datas, cb){
+    findByPosition: function(queryParams, cb){
+        var _self = this
 
-        verification.checkKeys(datas, ['firstName', 'lastName', 'password', 'email'], function(err, postDatas){
+        verification.checkKeys(queryParams, ['latitude', 'longitude', 'distance'], function(err, queryParams){
 
-            // if missing parameter(s)
             if(err){
                 cb({
                     status: 'error',
                     message: 'Missing parameters',
-                    datas : err
+                    datas: err
                 })
-            }else {
+            }else{
 
-                var validator = dataValidator.init();
+                var validator = dataValidator.init()
 
-                if (validator.validateString(postDatas.firstName, 3, 40)
-                        .validateString(postDatas.lastName, 3, 40)
-                        .validateLength(postDatas.password, 8, 40)
-                        .validateEmail(postDatas.email)
+                if(validator.validateFloat(queryParams.latitude)
+                        .validateFloat(queryParams.longitude)
+                        .validateDecimal(queryParams.distance)
                         .issetErrors()) {
 
                     cb({
                         status: 'error',
-                        message: 'Errors in POST datas',
+                        message: 'Errors in query datas',
                         datas: validator.getErrors()
                     })
+                }else{
+                    // earth radius * 1000(for km)
+                    var earthR = 6371*1000
+                    var latitude = {
+                        degree: queryParams.latitude,
+                        radian: _self.degreeToRadian(queryParams.latitude),
+                    }
+                    var longitude = {
+                        degree: queryParams.longitude,
+                        radian: _self.degreeToRadian(queryParams.longitude),
+                    }
+                    var distance = queryParams.distance
+                    var latitudeDistanceRadian = distance/earthR
+                    var longitudeDistanceRadian = distance/earthR/Math.cos(latitude.radian)
 
-                } else {
-                    UserModel.findOne({
-                        'contact.email': postDatas.email
-                    }, function (err, user) {
-                        if (user) {
+                    var requestParams = {
+                        latMax: _self.radianToDegree(latitude.radian + latitudeDistanceRadian),
+                        latMin: _self.radianToDegree(latitude.radian - latitudeDistanceRadian),
+                        longMax: _self.radianToDegree(longitude.radian + longitudeDistanceRadian),
+                        longMin: _self.radianToDegree(longitude.radian - longitudeDistanceRadian),
+                    }
+
+
+
+                    // Generate random in Annecy
+                    //var test = new WishModel({
+                    //    latitude: Math.random() * (45.94 - 45.88) + 45.88,
+                    //    longitude: Math.random() * (6.18 - 6.05) + 6.05
+                    //})
+                    //
+                    //test.save(function(err,user){
+                    //    if(err){
+                    //        console.log(err)
+                    //    }
+                    //})
+
+                    // Find between square around user
+                    WishModel.find({
+                        latitude: {
+                            $gte: requestParams.latMin,
+                            $lte: requestParams.latMax
+                        },
+                        longitude: {
+                            $gte: requestParams.longMin,
+                            $lte: requestParams.longMax
+                        }
+                    }, function(err, wishes){
+                        if(err){
                             cb({
                                 status: 'error',
-                                message: 'Email already used'
-                            })
-                        } else {
-                            var user = new UserModel({
-                                contact: {
-                                    firstName: postDatas.firstName.toLowerCase(),
-                                    lastName: postDatas.lastName.toLowerCase(),
-                                    email: postDatas.email.toLowerCase()
-                                },
-                                account: {
-                                    password: bcrypt.hashSync(postDatas.password, 10),
-                                    createdAt: Date.now()
-                                }
-                            });
-
-                            user.save(function (err, user) {
-                                if (err) {
-                                    cb({
-                                        status: 'error',
-                                        message: 'Error while saving user'
-                                    });
-                                } else {
-                                    cb({
-                                        status: 'success',
-                                        message: 'User saved',
-                                        datas: {
-                                            id: user._id
-                                        }
-                                    });
-                                }
+                                message: 'Error while getting wishes'
                             })
                         }
-                    });
-                }
-            }}
-        )
 
+                        // Add distance
+                        var results = _.map(wishes, function(wish){
+
+                            var wishLat = _self.degreeToRadian(wish.latitude)
+
+                            var deltaLat = _self.degreeToRadian(latitude.degree - wish.latitude)
+                            var deltaLong = _self.degreeToRadian(longitude.degree - wish.longitude)
+
+                            var a = Math.sin(deltaLat/2) * Math.sin(deltaLat/2) +
+                                Math.cos(latitude.radian) * Math.cos(wishLat) *
+                                Math.sin(deltaLong/2) * Math.sin(deltaLong/2)
+                            var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+
+                            return {
+                                latitude: wish.latitude,
+                                longitude: wish.longitude,
+                                distance: earthR*c
+                            }
+                        })
+
+                        // Get if distance < required distance
+                        results = _.filter(results, function(result){
+                            return result.distance < distance
+                        })
+
+                        // sort by distance
+                        results = _.sortBy(results, function(result){
+                            return result.distance
+                        })
+
+
+                        cb({
+                            status: 'success',
+                            message: 'Getting wishes success',
+                            datas: results
+                        })
+                    })
+
+                }
+            }
+        })
+    },
+
+    radianToDegree: function(radian){
+        return radian*180/Math.PI
+    },
+
+    degreeToRadian: function(degree){
+        return degree*Math.PI/180
     }
 
 
 
-};
+}
