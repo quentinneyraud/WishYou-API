@@ -1,17 +1,16 @@
-var UserModel = require('../Models/User');
-var Response = require('../utils/Response');
-var JwtToken = require('../config.js').jsonWebTokenSecret;
-var bcrypt = require('bcrypt');
-var jwt    = require('jsonwebtoken');
-var verification = require('../utils/Verification');
-var dataValidator = require('../utils/DataValidator');
+var UserModel = require('../Models/User')
+var JwtToken = require('../config.js').jsonWebTokenSecret
+var bcrypt = require('bcrypt')
+var jwt    = require('jsonwebtoken')
+var verification = require('../utils/Verification')
+var dataValidator = require('../utils/DataValidator')
 
 module.exports = {
 
-    authenticate: function(datas, cb){
+    authenticate: function(postDatas, cb){
 
 
-        verification.checkKeys(datas, ['email', 'password'], function(err, postDatas){
+        verification.checkKeys(postDatas, ['email', 'password'], function(err, postDatas){
 
             // if missing parameter(s)
             if(err){
@@ -39,7 +38,7 @@ module.exports = {
                         cb({
                             status: 'error',
                             message: 'Authentication failed. User not found.'
-                        });
+                        })
                     } else if (user) {
 
                         // Compare stored password with POST password
@@ -49,23 +48,23 @@ module.exports = {
                             if (result) {
                                 var token = jwt.sign(user, JwtToken, {
                                     expiresIn: 1440 // expires in 24 hours
-                                });
+                                })
 
                                 cb({
                                     status: 'success',
                                     message: 'Token generated',
                                     datas: token
-                                });
+                                })
                             } else {
                                 cb({
                                     status: 'error',
                                     message: 'Authentication failed. Wrong password.'
-                                });
+                                })
                             }
-                        });
+                        })
                     }
 
-                });
+                })
 
             }
         })
@@ -93,7 +92,7 @@ module.exports = {
                     datas: user
                 })
             }
-        });
+        })
     },
 
     create: function(datas, cb){
@@ -109,7 +108,7 @@ module.exports = {
                 })
             }else {
 
-                var validator = dataValidator.init();
+                var validator = dataValidator.init()
 
                 if (validator.validateString(postDatas.firstName, 3, 40)
                         .validateString(postDatas.lastName, 3, 40)
@@ -143,14 +142,14 @@ module.exports = {
                                     password: bcrypt.hashSync(postDatas.password, 10),
                                     createdAt: Date.now()
                                 }
-                            });
+                            })
 
                             user.save(function (err, user) {
                                 if (err) {
                                     cb({
                                         status: 'error',
                                         message: 'Error while saving user'
-                                    });
+                                    })
                                 } else {
                                     cb({
                                         status: 'success',
@@ -158,11 +157,11 @@ module.exports = {
                                         datas: {
                                             id: user._id
                                         }
-                                    });
+                                    })
                                 }
                             })
                         }
-                    });
+                    })
                 }
             }}
         )
@@ -171,4 +170,4 @@ module.exports = {
 
 
 
-};
+}
