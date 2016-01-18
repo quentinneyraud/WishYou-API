@@ -4,7 +4,7 @@ module.exports = {
 
     init: function(){
         this.errors = [];
-        return this;
+        return this
     },
 
     validateString: function(string, minChars, maxChars){
@@ -13,21 +13,35 @@ module.exports = {
         }else if(string.length < minChars || string.length > maxChars){
             this.errors.push("'" + string + "' is not valid. It must be between " + minChars + " and " + maxChars + " characters")
         }
-        return this;
+        return this
     },
 
     validateEmail: function(email){
         if(!validator.isEmail(email)){
             this.errors.push("'" + email + "' is not a valid email.")
         }
-        return this;
+        return this
     },
 
     validateLength: function(string, minChars, maxChars){
         if(string.length < minChars || string.length > maxChars){
             this.errors.push("'" + string + "' is not valid. It must be between " + minChars + " and " + maxChars + " characters")
         }
-        return this;
+        return this
+    },
+
+    validateDecimal: function(number){
+        if(!validator.isDecimal(number)){
+            this.errors.push("'" + number + "' is not a valid decimal")
+        }
+        return this
+    },
+
+    validateFloat: function(number){
+        if(!validator.isFloat(number)){
+            this.errors.push("'" + number + "' is not a valid float")
+        }
+        return this
     },
 
     getErrors: function(){
