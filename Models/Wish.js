@@ -1,3 +1,8 @@
-/**
- * Created by quentin on 17/12/15.
- */
+var mongoose = require('mongoose')
+var Schema = mongoose.Schema
+
+// set up a mongoose model
+module.exports = mongoose.model('Wish', new Schema({
+    latitude: Number,
+    longitude: Number
+}))
